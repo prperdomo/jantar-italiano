@@ -308,7 +308,7 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
   const Y0 = 96, DY = 44, R = 17;
   const AISLE_L = 105, AISLE_R = 255, CROSS_Y = 470, DOOR_X = 180, DOOR_Y = 506;
 
-  // Lugares por mesa: coluna "Lugares" da aba 2026 de Controle_Mesas_2026.xlsx (mesas sem reserva ficam de fora)
+  // Lugares por mesa: valores iniciais (aba 2026 de Controle_Mesas_2026.xlsx); substituídos pela coluna "Lugares" da planilha Google ao carregar
   const LUGARES = {
     3: 6, 4: 6, 5: 5, 6: 6, 7: 7, 8: 6, 9: 6, 10: 6, 11: 6, 12: 8, 13: 6, 14: 6, 15: 8, 16: 8, 17: 6, 18: 6, 19: 10, 20: 6,
     21: 7, 22: 6, 23: 7, 24: 6, 25: 6, 26: 6, 27: 10, 28: 6, 29: 6, 30: 6, 31: 8, 32: 4, 33: 6, 34: 6, 35: 8, 36: 8, 37: 6, 38: 9, 39: 7, 40: 6,
@@ -529,6 +529,11 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
     try {
       const j = await api({ acao: "listar" });
       Object.keys(mesas).forEach(k => { if (!pendentes[k]) chegadas[k] = Number(j.chegadas[k]) || 0; });
+      if (j.lugares) {
+        // A coluna "Lugares" da planilha manda; os números embutidos só valem até a primeira resposta
+        Object.keys(LUGARES).forEach(k => delete LUGARES[k]);
+        Object.keys(j.lugares).forEach(k => { const v = Number(j.lugares[k]); if (v > 0) LUGARES[k] = v; });
+      }
       mostrarErro("");
     } catch (e) {
       mostrarErro("Sem conexão com a planilha. Os números podem estar desatualizados.");
