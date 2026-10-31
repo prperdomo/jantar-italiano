@@ -439,7 +439,12 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
     telaBusca.hidden = false;
     try { history.replaceState(null, "", location.pathname + location.search.replace(/[?&]mesa=\d+/, "")); } catch (e) {}
     window.scrollTo(0, 0);
-    input.select();
+    input.value = "";
+    erro.hidden = true;
+    const nome = document.getElementById("nome");
+    nome.value = "";
+    nome.dispatchEvent(new Event("input"));
+    input.focus();
   }
   document.getElementById("voltar").addEventListener("click", irParaBusca);
 
