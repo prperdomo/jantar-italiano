@@ -271,6 +271,7 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
     <strong></strong>
     <span></span>
     <p class="lugares" id="lugares" hidden></p>
+    <p class="cheg-erro" id="aviso-conexao" hidden></p>
   </div>
 
   <div class="map-wrap" id="mapa">
@@ -308,11 +309,12 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
   const Y0 = 96, DY = 44, R = 17;
   const AISLE_L = 105, AISLE_R = 255, CROSS_Y = 470, DOOR_X = 180, DOOR_Y = 506;
 
-  // Lugares por mesa: valores iniciais (aba 2026 de Controle_Mesas_2026.xlsx); substituídos pela coluna "Lugares" da planilha Google ao carregar
+  // Lugares por mesa: cópia da coluna "Lugares" da planilha Google em 30/10/2026; o app usa sempre o que a planilha devolver
   const LUGARES = {
-    3: 6, 4: 6, 5: 5, 6: 6, 7: 7, 8: 6, 9: 6, 10: 6, 11: 6, 12: 8, 13: 6, 14: 6, 15: 8, 16: 8, 17: 6, 18: 6, 19: 10, 20: 6,
-    21: 7, 22: 6, 23: 7, 24: 6, 25: 6, 26: 6, 27: 10, 28: 6, 29: 6, 30: 6, 31: 8, 32: 4, 33: 6, 34: 6, 35: 8, 36: 8, 37: 6, 38: 9, 39: 7, 40: 6,
-    41: 6, 42: 6, 43: 6, 44: 6, 45: 6, 46: 6, 47: 6, 48: 6, 49: 6, 50: 6, 51: 6, 52: 6, 53: 6, 54: 6, 56: 6, 57: 8, 58: 10
+    3: 4, 4: 6, 5: 5, 6: 6, 7: 6, 8: 6, 9: 6, 10: 6, 11: 6, 12: 6, 13: 6, 14: 6, 15: 8, 16: 8, 17: 6, 18: 6, 19: 10, 20: 6,
+    21: 7, 22: 6, 23: 7, 24: 6, 25: 6, 26: 6, 27: 10, 28: 6, 29: 6, 30: 6, 31: 8, 32: 4, 33: 6, 34: 6, 35: 8, 36: 6, 37: 5, 38: 9,
+    39: 7, 40: 6, 41: 6, 42: 6, 43: 6, 44: 6, 45: 6, 46: 6, 47: 6, 48: 6, 49: 6, 50: 6, 51: 6, 52: 6, 53: 6, 54: 6, 55: 6, 56: 8,
+    57: 8, 58: 10, 59: 7
   };
 
   const mesas = {};
@@ -462,8 +464,9 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
   const API = "https://script.google.com/macros/s/AKfycbzJ-G9CfrBSHqz3J1G5mTGqB4ZWRkrv7U5vb3ot3hkgklJEuBLnuH5XuH9uGLH6bpTP/exec";
   const ativo = /^https:\/\/script\.google\.com\//.test(API);
   const INTERVALO = 8000; // atualiza a contagem a cada 8 segundos
-  let mesaAtual = null;
+  let mesaAtual = null, carregado = false; // carregado: a planilha já respondeu pelo menos uma vez
   const chegadas = {}, pendentes = {};
+  const aviso = document.getElementById("aviso-conexao");
   const cheg = {
     box: document.getElementById("chegadas"),
     num: document.getElementById("cheg-num"),
@@ -483,7 +486,9 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
       g.classList.toggle("completa", !!LUGARES[k] && (chegadas[k] || 0) >= LUGARES[k]);
     });
     const lug = LUGARES[mesaAtual];
-    if (!ativo || !lug) { cheg.box.hidden = true; return; }
+    // Com a planilha ligada, os lugares só aparecem depois da primeira resposta dela (nada de número antigo piscando)
+    if (ativo) lugaresEl.hidden = true;
+    if (!ativo || !carregado || !lug) { cheg.box.hidden = true; return; }
     cheg.box.hidden = false;
     lugaresEl.hidden = true; // a caixa de chegadas já mostra os lugares
     const c = chegadas[mesaAtual] || 0;
@@ -534,16 +539,23 @@ footer { font-size: 12px; color: var(--muted); text-align: center; }
         Object.keys(LUGARES).forEach(k => delete LUGARES[k]);
         Object.keys(j.lugares).forEach(k => { const v = Number(j.lugares[k]); if (v > 0) LUGARES[k] = v; });
       }
+      carregado = true;
+      aviso.hidden = true;
       mostrarErro("");
     } catch (e) {
-      mostrarErro("Sem conexão com a planilha. Os números podem estar desatualizados.");
+      if (!carregado) {
+        aviso.textContent = "Sem conexão com a planilha. Tentando de novo…";
+        aviso.hidden = false;
+      } else {
+        mostrarErro("Sem conexão com a planilha. Os números podem estar desatualizados.");
+      }
     }
     renderChegadas();
   }
 
   async function alterar(delta) {
     const n = mesaAtual;
-    if (!ativo || !n) return;
+    if (!ativo || !n || !carregado) return;
     const antes = chegadas[n] || 0;
     if (antes + delta < 0) return;
     chegadas[n] = antes + delta;
